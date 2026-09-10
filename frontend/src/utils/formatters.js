@@ -76,7 +76,9 @@ export const getStatusBadge = (status) => {
 };
 
 export const getBackendBaseUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+  const apiUrl =
+    import.meta.env.VITE_API_URL ||
+    'https://api.kingcreativestudio.my.id/garasi-pickup-ciamis/api';
   return apiUrl.replace(/\/api\/?$/, '');
 };
 

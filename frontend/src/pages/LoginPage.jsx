@@ -5,8 +5,8 @@ import { Lock, User, Eye, EyeOff, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage({ onLoginSuccess }) {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -73,7 +73,7 @@ export default function LoginPage({ onLoginSuccess }) {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
+                  placeholder="Masukkan username"
                   className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 outline-none transition"
                 />
               </div>
@@ -89,7 +89,7 @@ export default function LoginPage({ onLoginSuccess }) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="admin"
+                  placeholder="Masukkan password"
                   className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-9 py-2 text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 outline-none transition"
                 />
                 <button
@@ -113,10 +113,6 @@ export default function LoginPage({ onLoginSuccess }) {
             </button>
           </form>
         </div>
-
-        <p className="text-center text-xs text-slate-400 mt-6">
-          Akun demo: username: <strong className="text-slate-600">admin</strong> | password: <strong className="text-slate-600">admin</strong> (atau <strong className="text-slate-600">admin123</strong>)
-        </p>
       </div>
     </div>
   );

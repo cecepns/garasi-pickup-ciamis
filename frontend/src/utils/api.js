@@ -4,8 +4,17 @@ import axios from 'axios';
  * Axios instance terpusat
  * Sesuai panduan AGENTS.md
  */
+const rawApiUrl =
+  import.meta.env.VITE_API_URL ||
+  'https://api.kingcreativestudio.my.id/garasi-pickup-ciamis/api';
+
+// Normalisasi URL agar selalu mengarah ke path /api
+const baseApiUrl = rawApiUrl.endsWith('/api')
+  ? rawApiUrl
+  : `${rawApiUrl.replace(/\/+$/, '')}/api`;
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
+  baseURL: baseApiUrl,
   timeout: 30000,
 });
 

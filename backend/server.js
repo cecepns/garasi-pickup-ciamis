@@ -5,7 +5,6 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const mysql = require('mysql2/promise');
-const XLSX = require('xlsx');
 const bcrypt = require('bcryptjs');
 
 // Load environment variables
@@ -1042,7 +1041,7 @@ app.get('/api/reports/sales', async (req, res) => {
   }
 });
 
-// GET /api/reports/sales/export-excel
+// GET /api/reports/sales/export-excel (Kirim raw data JSON untuk diekspor oleh frontend)
 app.get('/api/reports/sales/export-excel', async (req, res) => {
   try {
     const startDate = req.query.startDate;
@@ -1078,57 +1077,10 @@ app.get('/api/reports/sales/export-excel', async (req, res) => {
       params
     );
 
-    const excelRows = salesData.map((s, index) => ({
-      No: index + 1,
-      'Tanggal Terjual': s.tanggal_terjual ? String(s.tanggal_terjual).split('T')[0] : '-',
-      'Plat Nomor': s.plat_nomor || '-',
-      'Merk & Tipe Unit': `${s.merk || ''} ${s.model || ''}`,
-      Tahun: s.tahun || '-',
-      'Harga Beli (Modal Awal)': Number(s.harga_beli || 0),
-      'Biaya Perbaikan': Number(s.total_perbaikan || 0),
-      'Total Modal (Pokok)': Number(s.total_biaya_modal || 0),
-      'Harga Jual Realisasi': Number(s.harga_jual_realisasi || 0),
-      'Keuntungan (Profit)': Number(s.keuntungan || 0),
-      'Nama Pembeli': s.nama_pembeli || '-',
-      'No. Telepon / WA': s.no_telepon || '-',
-      'Alamat Pembeli': s.alamat_pembeli || '-',
-      'Metode Bayar': (s.metode_pembayaran || 'cash').toUpperCase(),
-      Catatan: s.catatan_penjualan || '-',
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(excelRows);
-
-    const colWidths = [
-      { wch: 6 },
-      { wch: 15 },
-      { wch: 14 },
-      { wch: 30 },
-      { wch: 8 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 20 },
-      { wch: 24 },
-      { wch: 18 },
-      { wch: 36 },
-      { wch: 14 },
-      { wch: 30 },
-    ];
-    worksheet['!cols'] = colWidths;
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Penjualan');
-
-    const fileBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    const filename = `Laporan-Penjualan-Garasi-Pickup-Ciamis-${new Date().toISOString().split('T')[0]}.xlsx`;
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    return res.send(fileBuffer);
+    return formatApiResponse(res, salesData, null, 'Data laporan penjualan untuk ekspor frontend.');
   } catch (error) {
-    console.error('Error export excel:', error);
-    return formatApiError(res, 500, 'Gagal mengexport file Excel: ' + error.message);
+    console.error('Error export data:', error);
+    return formatApiError(res, 500, 'Gagal mengambil data laporan penjualan: ' + error.message);
   }
 });
 
