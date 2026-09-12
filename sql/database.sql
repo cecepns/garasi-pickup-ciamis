@@ -57,7 +57,7 @@ CREATE TABLE `sales` (
   `keuntungan` DECIMAL(15,2) NOT NULL,
   `catatan_penjualan` TEXT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`car_id`) REFERENCES `cars`(`id`) ON DELETE RESTRICT,
+  FOREIGN KEY (`car_id`) REFERENCES `cars`(`id`) ON DELETE CASCADE,
   INDEX `idx_sales_date` (`tanggal_terjual`),
   INDEX `idx_sales_pembeli` (`nama_pembeli`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

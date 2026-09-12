@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
   SALES: {
     LIST: "/sales",
     CREATE: "/sales",
+    DELETE: (id) => `/sales/${id}`,
   },
 
   // Laporan & Ekspor Excel

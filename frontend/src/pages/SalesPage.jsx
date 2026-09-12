@@ -5,12 +5,15 @@ import { formatRupiah, formatDate } from '../utils/formatters';
 import { useDebounce } from '../hooks/useDebounce';
 import Pagination from '../components/Pagination';
 import SaleDetailModal from '../components/SaleDetailModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { EmptyState, LoadingSkeleton } from '../components/EmptyState';
 import { 
   ShoppingBag, 
   Search, 
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -34,6 +37,11 @@ export default function SalesPage() {
   // Detail Modal
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
+
+  // Cancel / Delete Sale Modal
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const fetchSales = useCallback(async () => {
     try {
@@ -71,6 +79,26 @@ export default function SalesPage() {
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }));
   }, [debouncedSearch, startDate, endDate]);
+
+  // Handle Cancel / Delete Sale
+  const handleConfirmCancelSale = async () => {
+    if (!saleToCancel) return;
+    try {
+      setIsCancelling(true);
+      const res = await request.delete(API_ENDPOINTS.SALES.DELETE(saleToCancel.id));
+      if (res.success) {
+        toast.success(res.message || 'Transaksi penjualan berhasil dibatalkan');
+        setIsCancelOpen(false);
+        setSaleToCancel(null);
+        setIsDetailOpen(false);
+        fetchSales();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Gagal membatalkan transaksi');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -137,7 +165,7 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* Table Penjualan - Clean & Concise */}
+      {/* Table Penjualan */}
       {isLoading ? (
         <LoadingSkeleton rows={5} />
       ) : sales.length === 0 ? (
@@ -194,18 +222,32 @@ export default function SalesPage() {
                     </td>
 
                     <td className="py-3 px-4 text-center whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedSale(sale);
-                          setIsDetailOpen(true);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition"
-                        title="Lihat Detail Transaksi"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Detail</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSale(sale);
+                            setIsDetailOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition"
+                          title="Lihat Detail Transaksi"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Detail</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSaleToCancel(sale);
+                            setIsCancelOpen(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                          title="Batalkan Transaksi Penjualan"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -234,6 +276,25 @@ export default function SalesPage() {
           setSelectedSale(null);
         }}
         sale={selectedSale}
+        onCancelSale={(sale) => {
+          setSaleToCancel(sale);
+          setIsCancelOpen(true);
+        }}
+      />
+
+      {/* Confirm Dialog Cancel / Delete Sale */}
+      <ConfirmDialog
+        isOpen={isCancelOpen}
+        onClose={() => {
+          setIsCancelOpen(false);
+          setSaleToCancel(null);
+        }}
+        onConfirm={handleConfirmCancelSale}
+        title="Batalkan Transaksi Penjualan"
+        message={`Yakin ingin membatalkan transaksi penjualan untuk ${saleToCancel?.plat_nomor || 'unit ini'} (Pembeli: ${saleToCancel?.nama_pembeli || ''})? Status unit akan otomatis dikembalikan menjadi 'Tersedia' di garasi.`}
+        confirmText="Batalkan Transaksi"
+        isLoading={isCancelling}
+        variant="amber"
       />
     </div>
   );

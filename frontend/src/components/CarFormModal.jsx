@@ -311,8 +311,15 @@ export default function CarFormModal({
               <option value="tersedia">Tersedia</option>
               <option value="perbaikan">Dalam Perbaikan</option>
               <option value="booking">Booking</option>
-              <option value="terjual">Terjual</option>
+              {initialData?.status === 'terjual' && (
+                <option value="terjual">Terjual (Saat Ini)</option>
+              )}
             </select>
+            {initialData?.status === 'terjual' && formData.status !== 'terjual' && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                ⚠️ Mengubah status dari 'Terjual' akan membatalkan data transaksi penjualan unit ini.
+              </p>
+            )}
           </div>
 
           <div>

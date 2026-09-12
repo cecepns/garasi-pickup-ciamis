@@ -159,11 +159,22 @@ async function initDatabase() {
       \`keuntungan\` DECIMAL(15,2) NOT NULL,
       \`catatan_penjualan\` TEXT NULL,
       \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (\`car_id\`) REFERENCES \`cars\`(\`id\`) ON DELETE RESTRICT,
+      FOREIGN KEY (\`car_id\`) REFERENCES \`cars\`(\`id\`) ON DELETE CASCADE,
       INDEX \`idx_sales_date\` (\`tanggal_terjual\`),
       INDEX \`idx_sales_pembeli\` (\`nama_pembeli\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+
+  // Sinkronisasi data: Reset status unit mobil yang 'terjual' tapi tidak ada di tabel sales
+  try {
+    await dbPool.query(`
+      UPDATE cars 
+      SET status = 'tersedia' 
+      WHERE status = 'terjual' AND id NOT IN (SELECT car_id FROM sales);
+    `);
+  } catch (e) {
+    console.warn('Sync status warning:', e.message);
+  }
 
   // 5. Buat tabel users
   await dbPool.query(`
@@ -711,6 +722,11 @@ app.put('/api/cars/:id', upload.single('foto_utama'), async (req, res) => {
       ]
     );
 
+    // Jika status diubah dari 'terjual' ke status lain (tersedia/perbaikan/booking), otomatis bersihkan data penjualan di sales
+    if (current.status === 'terjual' && status && status !== 'terjual') {
+      await dbPool.query('DELETE FROM sales WHERE car_id = ?', [id]);
+    }
+
     const [updated] = await dbPool.query('SELECT * FROM cars WHERE id = ?', [id]);
     return formatApiResponse(res, updated[0], null, 'Data unit pickup berhasil diperbarui!');
   } catch (error) {
@@ -729,13 +745,11 @@ app.delete('/api/cars/:id', async (req, res) => {
       return formatApiError(res, 404, 'Unit pickup tidak ditemukan.');
     }
 
-    // Cek apakah ada data penjualan
-    const [sales] = await dbPool.query('SELECT id FROM sales WHERE car_id = ?', [id]);
-    if (sales.length > 0) {
-      return formatApiError(res, 400, 'Unit ini sudah berstatus terjual dan memiliki data transaksi penjualan. Tidak dapat dihapus!');
-    }
-
+    // Bersihkan data riwayat sales dan perbaikan terkait terlebih dahulu (clean delete)
+    await dbPool.query('DELETE FROM sales WHERE car_id = ?', [id]);
+    await dbPool.query('DELETE FROM car_repairs WHERE car_id = ?', [id]);
     await dbPool.query('DELETE FROM cars WHERE id = ?', [id]);
+
     return formatApiResponse(res, { id }, null, `Unit pickup ${existing[0].plat_nomor} berhasil dihapus.`);
   } catch (error) {
     console.error('Error delete car:', error);
@@ -977,6 +991,36 @@ app.get('/api/sales', async (req, res) => {
   } catch (error) {
     console.error('Error get sales:', error);
     return formatApiError(res, 500, 'Gagal mengambil data penjualan: ' + error.message);
+  }
+});
+
+// DELETE /api/sales/:id (Batalkan / Hapus Transaksi Penjualan)
+app.delete('/api/sales/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    const [sales] = await dbPool.query('SELECT * FROM sales WHERE id = ?', [id]);
+    if (sales.length === 0) {
+      return formatApiError(res, 404, 'Data transaksi penjualan tidak ditemukan.');
+    }
+
+    const sale = sales[0];
+
+    // Hapus data penjualan
+    await dbPool.query('DELETE FROM sales WHERE id = ?', [id]);
+
+    // Kembalikan status mobil terkait menjadi 'tersedia'
+    await dbPool.query("UPDATE cars SET status = 'tersedia' WHERE id = ?", [sale.car_id]);
+
+    return formatApiResponse(
+      res,
+      { id, car_id: sale.car_id },
+      null,
+      'Transaksi penjualan berhasil dibatalkan dan status unit dikembalikan menjadi tersedia!'
+    );
+  } catch (error) {
+    console.error('Error delete sale:', error);
+    return formatApiError(res, 500, 'Gagal membatalkan transaksi penjualan: ' + error.message);
   }
 });
 
