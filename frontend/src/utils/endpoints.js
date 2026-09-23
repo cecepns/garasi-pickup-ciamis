@@ -50,6 +50,7 @@ export const API_ENDPOINTS = {
   REPAIRS: {
     LIST_BY_CAR: (carId) => `/cars/${carId}/repairs`,
     CREATE: (carId) => `/cars/${carId}/repairs`,
+    UPDATE: (id) => `/repairs/${id}`,
     DELETE: (id) => `/repairs/${id}`,
   },
 
@@ -63,6 +64,7 @@ export const API_ENDPOINTS = {
   // Laporan & Ekspor Excel
   REPORTS: {
     SALES: "/reports/sales",
+    REPAIRS: "/reports/repairs",
     EXPORT_EXCEL: "/reports/sales/export-excel",
   },
 };

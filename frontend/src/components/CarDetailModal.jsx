@@ -1,7 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { formatRupiah, formatDate, getStatusBadge, getFileUrl } from '../utils/formatters';
-import { Truck, Wrench, ShoppingBag, Edit, Calendar, Gauge, Fuel, Settings } from 'lucide-react';
+import { request } from '../utils/request';
+import { API_ENDPOINTS } from '../utils/endpoints';
+import { 
+  Truck, 
+  Wrench, 
+  ShoppingBag, 
+  Edit, 
+  Calendar, 
+  Gauge, 
+  Fuel, 
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  AlertCircle
+} from 'lucide-react';
 
 export default function CarDetailModal({
   isOpen,
@@ -11,10 +26,47 @@ export default function CarDetailModal({
   onOpenSell,
   onOpenEdit,
 }) {
+  const [repairs, setRepairs] = useState([]);
+  const [isLoadingRepairs, setIsLoadingRepairs] = useState(false);
+  const [isRepairsExpanded, setIsRepairsExpanded] = useState(true);
+
+  useEffect(() => {
+    if (isOpen && car?.id) {
+      if (car.repairs && Array.isArray(car.repairs)) {
+        setRepairs(car.repairs);
+      } else {
+        fetchRepairs(car.id);
+      }
+    } else {
+      setRepairs([]);
+    }
+  }, [isOpen, car]);
+
+  const fetchRepairs = async (carId) => {
+    try {
+      setIsLoadingRepairs(true);
+      const res = await request.get(API_ENDPOINTS.REPAIRS.LIST_BY_CAR(carId));
+      if (res.success) {
+        const list = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.repairs || []);
+        setRepairs(list);
+      }
+    } catch (err) {
+      // Silently catch error on preview modal
+    } finally {
+      setIsLoadingRepairs(false);
+    }
+  };
+
   if (!car) return null;
 
   const badge = getStatusBadge(car.status);
-  const totalModal = Number(car.total_modal || car.harga_beli);
+  const totalPerbaikan = repairs.length > 0 
+    ? repairs.reduce((acc, r) => acc + parseFloat(r.biaya || 0), 0)
+    : Number(car.total_perbaikan || 0);
+
+  const totalModal = Number(car.harga_beli || 0) + totalPerbaikan;
   const estimasiLaba = Number(car.estimasi_keuntungan || (car.harga_jual_target - totalModal));
 
   return (
@@ -23,7 +75,7 @@ export default function CarDetailModal({
       onClose={onClose}
       title={`${car.plat_nomor} • ${car.merk} ${car.model}`}
       subtitle={`Tahun ${car.tahun}`}
-      maxWidth="max-w-lg"
+      maxWidth="max-w-xl"
     >
       <div className="space-y-4 text-xs">
         {/* Foto Unit */}
@@ -49,16 +101,16 @@ export default function CarDetailModal({
         {/* Finansial Card */}
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
           <span className="font-bold text-slate-900 block text-xs uppercase tracking-wide">
-            Rincian Finansial
+            Rincian Finansial Unit
           </span>
           <div className="flex justify-between text-slate-600">
             <span>Harga Beli Modal:</span>
             <span className="font-semibold text-slate-800">{formatRupiah(car.harga_beli)}</span>
           </div>
           <div className="flex justify-between text-slate-600">
-            <span>Biaya Perbaikan:</span>
+            <span>Biaya Perbaikan / Rekondisi:</span>
             <span className="font-semibold text-amber-700">
-              +{formatRupiah(car.total_perbaikan || 0)}
+              +{formatRupiah(totalPerbaikan)}
             </span>
           </div>
           <div className="flex justify-between text-slate-900 pt-1.5 border-t border-slate-200 font-bold">
@@ -79,6 +131,86 @@ export default function CarDetailModal({
               {formatRupiah(car.keuntungan_realisasi || estimasiLaba)}
             </span>
           </div>
+        </div>
+
+        {/* Rincian Pengeluaran Unit (Detail Breakdown) */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-3.5 h-3.5 text-amber-600" />
+              <span className="font-semibold text-slate-900 text-xs">
+                Rincian Pengeluaran / Perbaikan ({repairs.length})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onOpenRepair) onOpenRepair(car);
+                }}
+                className="px-2 py-1 text-[11px] font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-md border border-amber-300 transition"
+              >
+                + Kelola / Koreksi
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRepairsExpanded(!isRepairsExpanded)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded transition"
+                aria-label="Toggle rincian pengeluaran"
+              >
+                {isRepairsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {isRepairsExpanded && (
+            <div className="p-3">
+              {isLoadingRepairs ? (
+                <div className="py-4 text-center text-slate-400">Memuat rincian pengeluaran...</div>
+              ) : repairs.length === 0 ? (
+                <div className="text-center py-4 text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                  <p>Belum ada catatan biaya perbaikan untuk unit ini.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      if (onOpenRepair) onOpenRepair(car);
+                    }}
+                    className="mt-2 text-xs font-semibold text-amber-700 hover:underline inline-flex items-center gap-1"
+                  >
+                    + Catat Pengeluaran Pertama
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                  {repairs.map((r) => (
+                    <div key={r.id} className="py-2 flex items-center justify-between gap-2 hover:bg-slate-50/50 px-1 rounded transition">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900 truncate">
+                            {r.nama_perbaikan}
+                          </span>
+                          <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                            {formatDate(r.tanggal)}
+                          </span>
+                        </div>
+                        {r.bengkel_catatan && (
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                            Bengkel / Catatan: {r.bengkel_catatan}
+                          </p>
+                        )}
+                      </div>
+                      <span className="font-semibold text-amber-700 whitespace-nowrap text-xs">
+                        +{formatRupiah(r.biaya)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Spesifikasi Grid */}
@@ -123,10 +255,10 @@ export default function CarDetailModal({
               onClose();
               if (onOpenRepair) onOpenRepair(car);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold transition"
           >
             <Wrench className="w-3.5 h-3.5 text-amber-600" />
-            <span>Biaya Perbaikan</span>
+            <span>Koreksi & Biaya Perbaikan</span>
           </button>
 
           <button
@@ -138,7 +270,7 @@ export default function CarDetailModal({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium transition"
           >
             <Edit className="w-3.5 h-3.5 text-slate-500" />
-            <span>Edit</span>
+            <span>Edit Unit</span>
           </button>
 
           {car.status !== 'terjual' && (

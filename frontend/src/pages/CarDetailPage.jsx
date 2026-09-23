@@ -23,7 +23,8 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
-  Tag
+  Tag,
+  Edit2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -356,31 +357,44 @@ export default function CarDetailPage() {
               <button
                 type="button"
                 onClick={() => setIsRepairModalOpen(true)}
-                className="text-xs font-medium text-brand-600 hover:text-brand-700 transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition"
               >
-                + Tambah Perbaikan
+                <Wrench className="w-3.5 h-3.5 text-amber-600" />
+                <span>+ Kelola / Koreksi Pengeluaran</span>
               </button>
             </div>
 
             {car.repairs && car.repairs.length > 0 ? (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
+              <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[500px]">
                   <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3 font-medium">Tanggal</th>
                       <th className="py-2.5 px-3 font-medium">Item Perbaikan</th>
                       <th className="py-2.5 px-3 font-medium">Catatan Bengkel</th>
                       <th className="py-2.5 px-3 text-right font-medium">Biaya (Rp)</th>
+                      <th className="py-2.5 px-3 text-center font-medium w-24">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {car.repairs.map((r) => (
                       <tr key={r.id} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-3 text-slate-500">{formatDate(r.tanggal)}</td>
+                        <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">{formatDate(r.tanggal)}</td>
                         <td className="py-2.5 px-3 font-medium text-slate-900">{r.nama_perbaikan}</td>
                         <td className="py-2.5 px-3 text-slate-500">{r.bengkel_catatan || '-'}</td>
-                        <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
+                        <td className="py-2.5 px-3 text-right font-semibold text-amber-700 whitespace-nowrap">
                           {formatRupiah(r.biaya)}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => setIsRepairModalOpen(true)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-md border border-amber-200 transition"
+                            title="Koreksi Pengeluaran Ini"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                            <span>Koreksi</span>
+                          </button>
                         </td>
                       </tr>
                     ))}

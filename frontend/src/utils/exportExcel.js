@@ -85,3 +85,61 @@ export const exportSalesToExcel = (salesData, summary = null, dateFilter = null)
   XLSX.writeFile(workbook, filename);
   return filename;
 };
+
+/**
+ * Utility untuk export laporan pengeluaran perbaikan ke format Excel (.xlsx)
+ */
+export const exportRepairsToExcel = (repairsData, summary = null) => {
+  if (!repairsData || repairsData.length === 0) {
+    throw new Error('Tidak ada data pengeluaran perbaikan untuk diekspor.');
+  }
+
+  const rows = repairsData.map((r, index) => ({
+    'No': index + 1,
+    'Tanggal': r.tanggal ? String(r.tanggal).split('T')[0] : '-',
+    'Plat Nomor': r.plat_nomor || '-',
+    'Merk Unit': r.merk || '-',
+    'Model Unit': r.model || '-',
+    'Tahun': r.tahun || '-',
+    'Item Pengeluaran / Perbaikan': r.nama_perbaikan || '-',
+    'Catatan / Bengkel': r.bengkel_catatan || '-',
+    'Biaya Pengeluaran (Rp)': Number(r.biaya || 0),
+  }));
+
+  const sumBiaya = repairsData.reduce((acc, r) => acc + Number(r.biaya || 0), 0);
+
+  rows.push({
+    'No': '',
+    'Tanggal': '',
+    'Plat Nomor': '',
+    'Merk Unit': '',
+    'Model Unit': '',
+    'Tahun': '',
+    'Item Pengeluaran / Perbaikan': 'TOTAL PENGELUARAN',
+    'Catatan / Bengkel': `${repairsData.length} Item`,
+    'Biaya Pengeluaran (Rp)': sumBiaya,
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  worksheet['!cols'] = [
+    { wch: 6 },
+    { wch: 15 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 25 },
+    { wch: 8 },
+    { wch: 30 },
+    { wch: 30 },
+    { wch: 22 },
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Pengeluaran');
+
+  const today = new Date().toISOString().split('T')[0];
+  const filename = `Laporan-Pengeluaran-Perbaikan-Garasi-Pickup-${today}.xlsx`;
+
+  XLSX.writeFile(workbook, filename);
+  return filename;
+};

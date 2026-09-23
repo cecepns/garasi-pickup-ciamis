@@ -771,7 +771,12 @@ app.get('/api/cars/:carId/repairs', async (req, res) => {
       [carId]
     );
 
-    return formatApiResponse(res, rows);
+    const totalBiaya = rows.reduce((sum, item) => sum + parseFloat(item.biaya || 0), 0);
+
+    return formatApiResponse(res, {
+      repairs: rows,
+      total_biaya: totalBiaya,
+    });
   } catch (error) {
     console.error('Error get repairs:', error);
     return formatApiError(res, 500, 'Gagal mengambil riwayat perbaikan: ' + error.message);
@@ -815,6 +820,40 @@ app.post('/api/cars/:carId/repairs', async (req, res) => {
   } catch (error) {
     console.error('Error create repair:', error);
     return formatApiError(res, 500, 'Gagal mencatat biaya perbaikan: ' + error.message);
+  }
+});
+
+// PUT /api/repairs/:id (Koreksi / Ubah Catatan Perbaikan)
+app.put('/api/repairs/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { nama_perbaikan, biaya, tanggal, bengkel_catatan } = req.body;
+
+    if (!nama_perbaikan || biaya === undefined || biaya === null) {
+      return formatApiError(res, 400, 'Nama perbaikan dan biaya wajib diisi!');
+    }
+
+    const [existing] = await dbPool.query('SELECT * FROM car_repairs WHERE id = ?', [id]);
+    if (existing.length === 0) {
+      return formatApiError(res, 404, 'Catatan perbaikan tidak ditemukan.');
+    }
+
+    await dbPool.query(
+      'UPDATE car_repairs SET nama_perbaikan = ?, biaya = ?, tanggal = ?, bengkel_catatan = ? WHERE id = ?',
+      [
+        nama_perbaikan.trim(),
+        parseFloat(biaya),
+        tanggal || existing[0].tanggal,
+        bengkel_catatan !== undefined ? (bengkel_catatan ? bengkel_catatan.trim() : null) : existing[0].bengkel_catatan,
+        id,
+      ]
+    );
+
+    const [updatedRepair] = await dbPool.query('SELECT * FROM car_repairs WHERE id = ?', [id]);
+    return formatApiResponse(res, updatedRepair[0], null, 'Catatan biaya perbaikan berhasil diperbarui / dikoreksi!');
+  } catch (error) {
+    console.error('Error update repair:', error);
+    return formatApiError(res, 500, 'Gagal memperbarui biaya perbaikan: ' + error.message);
   }
 });
 
@@ -1125,6 +1164,68 @@ app.get('/api/reports/sales/export-excel', async (req, res) => {
   } catch (error) {
     console.error('Error export data:', error);
     return formatApiError(res, 500, 'Gagal mengambil data laporan penjualan: ' + error.message);
+  }
+});
+
+// GET /api/reports/repairs (Rekapitulasi & Rincian Pengeluaran Perbaikan Seluruh Unit)
+app.get('/api/reports/repairs', async (req, res) => {
+  try {
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const search = req.query.search ? String(req.query.search).trim() : '';
+
+    let whereConditions = [];
+    let params = [];
+
+    if (startDate) {
+      whereConditions.push('r.tanggal >= ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereConditions.push('r.tanggal <= ?');
+      params.push(endDate);
+    }
+    if (search) {
+      whereConditions.push('(c.plat_nomor LIKE ? OR c.merk LIKE ? OR c.model LIKE ? OR r.nama_perbaikan LIKE ? OR r.bengkel_catatan LIKE ?)');
+      const pattern = `%${search}%`;
+      params.push(pattern, pattern, pattern, pattern, pattern);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const [repairs] = await dbPool.query(
+      `SELECT 
+        r.*,
+        c.plat_nomor,
+        c.merk,
+        c.model,
+        c.tahun,
+        c.status as status_mobil,
+        c.harga_beli
+       FROM car_repairs r
+       JOIN cars c ON r.car_id = c.id
+       ${whereClause}
+       ORDER BY r.tanggal DESC, r.id DESC`,
+      params
+    );
+
+    const total_pengeluaran = repairs.reduce((acc, r) => acc + parseFloat(r.biaya || 0), 0);
+    const uniqueCarIds = new Set(repairs.map((r) => r.car_id));
+    const total_unit = uniqueCarIds.size;
+    const rata_rata_per_unit = total_unit > 0 ? Math.round(total_pengeluaran / total_unit) : 0;
+
+    return formatApiResponse(res, {
+      summary: {
+        total_pengeluaran,
+        total_transaksi: repairs.length,
+        total_unit,
+        rata_rata_per_unit,
+      },
+      repairs,
+    });
+  } catch (error) {
+    console.error('Error get repairs report:', error);
+    return formatApiError(res, 500, 'Gagal mengambil laporan pengeluaran: ' + error.message);
   }
 });
 
