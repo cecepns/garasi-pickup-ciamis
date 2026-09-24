@@ -3,7 +3,7 @@ import Modal from './Modal';
 import { formatRupiah, formatDate } from '../utils/formatters';
 import { User, Phone, MapPin, CreditCard, FileText, CheckCircle2, TrendingUp } from 'lucide-react';
 
-export default function SaleDetailModal({ isOpen, onClose, sale }) {
+export default function SaleDetailModal({ isOpen, onClose, sale, onCancelSale }) {
   if (!sale) return null;
 
   return (
